@@ -59,7 +59,7 @@ def main():
                 mousex, mousey = event.pos
                 mouseClicked = True
             spotx, spoty = getSpotClicked(mainBoard, mousex, mousey)
-        if (spotx, spoty) == (None, None):
+        if  spotx is None or spoty is None:
             # check for the button pressed
             if FENCE_RECT.collidepoint((mousex, mousey)) and mouseClicked:
                 # Fence Button pressed
@@ -74,58 +74,32 @@ def main():
         else:
             playerx, playery = getPlayerPosition(mainBoard, playerChance)
 
-            if playerChance == 1:
-                onumber = 2
-            else:
-                onumber = 1
+            onumber = 3 - playerChance # note that if playerChance is 1 onumber is 2 and vise versa
             opp_playerx, opp_playery = getPlayerPosition(mainBoard, onumber)
+            relative_location = {(-1, -1): JRIGHTDOWN, (-1, 0): RIGHT, (-1, 1): JRIGHTUP,
+                                 (0, -1): DOWN, (0, 1): UP, (1, -1): JLEFTDOWN, (1, 0): LEFT, (1, 1): JLEFTUP,
+                                 (2, 0): JLEFTLEFT, (-2, 0): JRIGHTRIGHT}
 
             if spotx != opp_playerx or spoty != opp_playery:
-                if spotx == playerx + 1 and spoty == playery:
-                    slideTo = LEFT
-                elif spotx == playerx - 1 and spoty == playery:
-                    slideTo = RIGHT
-                elif spotx == playerx and spoty == playery - 1:
-                    slideTo = DOWN
-                elif spotx == playerx and spoty == playery + 1:
-                    slideTo = UP
+                if (spotx - playerx, spoty - playery) in relative_location:
+                    slideTo = relative_location[(spotx - playerx, spoty - playery)]
 
             '''
             The below logic uses the opposing player's position
             and the current player's position to figure out
             which direction the car should jump
             '''
-            if opp_playerx == playerx + 1 and opp_playery == playery:
-                if spotx == playerx + 2 and spoty == playery:
-                    slideTo = JLEFTLEFT
-                if spotx == playerx + 1 and spoty == playery - 1:
-                    slideTo = JLEFTDOWN
-                if spotx == playerx + 1 and spoty == playery + 1:
-                    slideTo = JLEFTUP
 
-            elif opp_playerx == playerx - 1 and opp_playery == playery:
-                if spotx == playerx - 2 and spoty == playery:
-                    slideTo = JRIGHTRIGHT
-                if spotx == playerx - 1 and spoty == playery - 1:
-                    slideTo = JRIGHTDOWN
-                if spotx == playerx - 1 and spoty == playery + 1:
-                    slideTo = JRIGHTUP
+            if abs(opp_playerx - playerx) == 1 and opp_playery == playery:
+                if (spotx - playerx, spoty - playery) in relative_location:
+                    slideTo = relative_location[(spotx - playerx, spoty - playery)]
 
-            elif opp_playerx == playerx and opp_playery == playery - 1:
-                if spotx == playerx and spoty == playery - 2:
-                    slideTo = JDOWNDOWN
-                if spoty == playery - 1 and spotx == playerx - 1:
-                    slideTo = JDOWNRIGHT
-                if spoty == playery - 1 and spotx == playerx + 1:
-                    slideTo = JDOWNLEFT
+            relative_location = {(-1, -1): JDOWNRIGHT, (-1, 1): JUPRIGHT, (1, -1): JDOWNLEFT, (1, 1): JUPLEFT,
+                                 (0, 2): JUPUP, (0, -2): JDOWNDOWN}
 
-            elif opp_playerx == playerx and opp_playery == playery + 1:
-                if spotx == playerx and spoty == playery + 2:
-                    slideTo = JUPUP
-                if spoty == playery + 1 and spotx == playerx - 1:
-                    slideTo = JUPRIGHT
-                if spoty == playery + 1 and spotx == playerx + 1:
-                    slideTo = JUPLEFT
+            if opp_playerx == playerx and abs(opp_playery - playery) == 1:
+                if (spotx - playerx, spoty - playery) in relative_location:
+                    slideTo = relative_location[(spotx - playerx, spoty - playery)]
 
                     # print slideTo
             if fenceClicked:
@@ -144,7 +118,7 @@ def main():
                             if validateFence(
                                 mainBoard, playerChance, playerx, playery
                             ) and validateFence(mainBoard, onumber, opp_playerx, opp_playery):
-                                playerChance = 2 if playerChance == 1 else 1
+                                playerChance = 3 - playerChance # an easier way to swap between 2 and 1
                                 fenceClicked = False
                             else:
                                 hasWon(mainBoard, onumber)
@@ -160,24 +134,14 @@ def main():
             elif moveClicked:
                 drawBoard(mainBoard, "Player " + str(playerChance) + " to move the car")
                 pygame.draw.rect(DISPLAYSURF, BLACK, MOVE_RECT, 2)
-                if (
-                    slideTo
-                    and not mouseClicked
-                    and validateMove(mainBoard, spotx, spoty, playerChance, slideTo)
-                ):
-                    drawHighlightTile(spotx, spoty, BLACK)
-                if (
-                    slideTo
-                    and mouseClicked
-                    and validateMove(mainBoard, spotx, spoty, playerChance, slideTo)
-                ):
-                    moveAnimation(mainBoard, slideTo, playerChance)
-                    makeMove(mainBoard, slideTo, playerChance)
-                    if playerChance == 1:
-                        playerChance = 2
-                    elif playerChance == 2:
-                        playerChance = 1
-                    moveClicked = False
+                if slideTo and validateMove(mainBoard, spotx, spoty, playerChance, slideTo):
+                    if not mouseClicked:
+                        drawHighlightTile(spotx, spoty, BLACK)
+                    else:
+                        moveAnimation(mainBoard, slideTo, playerChance)
+                        makeMove(mainBoard, slideTo, playerChance)
+                        playerChance = 3 - playerChance # once again, swaps between the values 2 and 1
+                        moveClicked = False
 
         pygame.display.update()
         slideTo = None
@@ -266,7 +230,7 @@ def drawTile(tileX, tileY, number, adjx=0, adjy=0):
         textRect.center = left + adjx, top + adjy
         DISPLAYSURF.blit(flagImg, textRect)
 
-    if number == 2 or number == 1:
+    if number in [1, 2]:
 
         textSurf = BASICFONT.render(str(number), True, TEXTCOLOR)
         textRect = textSurf.get_rect()
@@ -426,8 +390,8 @@ def getSpotClicked(board, x, y):
 def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thickness=4):
     left, top = getLeftTopOfTile(tileX, tileY)
     Ox, Oy = getLeftTopOfTile(0, 0)
-    if mousex > mousey and mousex + mousey < (top + left + TILESIZE):
-        if left <= Ox + 6 * TILESIZE and top != Oy:
+    if mousex > mousey and mousex + mousey < (top + left + TILESIZE) and top != Oy:
+        if left <= Ox + 6 * TILESIZE:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -435,7 +399,7 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 (left + 2 * TILESIZE, top),
                 fence_thickness,
             )
-        elif left > Ox + 6 * TILESIZE and top != Oy:
+        else:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -444,8 +408,8 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 fence_thickness,
             )
 
-    elif mousex > mousey and mousex + mousey > (top + left + TILESIZE):
-        if top <= Oy + 6 * TILESIZE and left < Ox + 6 * TILESIZE:
+    elif mousex > mousey and mousex + mousey > (top + left + TILESIZE) and left < Ox + 6 * TILESIZE:
+        if top <= Oy + 6 * TILESIZE:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -453,7 +417,7 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 (left + TILESIZE, top + 2 * TILESIZE),
                 fence_thickness,
             )
-        elif top > Oy + 6 * TILESIZE and left < Ox + 6 * TILESIZE:
+        else:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -462,8 +426,8 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 fence_thickness,
             )
 
-    elif mousex < mousey and mousex + mousey < (top + left + TILESIZE):
-        if top <= Oy + 6 * TILESIZE and left != Ox:
+    elif mousex < mousey and mousex + mousey < (top + left + TILESIZE) and left != Ox:
+        if top <= Oy + 6 * TILESIZE:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -471,7 +435,7 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 (left, top + 2 * TILESIZE),
                 fence_thickness,
             )
-        elif top > Oy + 6 * TILESIZE and left != Ox:
+        else:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -480,8 +444,8 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 fence_thickness,
             )
 
-    elif mousex < mousey and mousex + mousey > (top + left + TILESIZE):
-        if left <= Ox + 6 * TILESIZE and top < Oy + 6 * TILESIZE:
+    elif mousex < mousey and mousex + mousey > (top + left + TILESIZE) and top < Oy + 6 * TILESIZE:
+        if left <= Ox + 6 * TILESIZE:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -489,7 +453,7 @@ def drawFenceHighlight(tileX, tileY, highLightColor, mousex, mousey, fence_thick
                 (left + 2 * TILESIZE, top + TILESIZE),
                 fence_thickness,
             )
-        elif left > Ox + 6 * TILESIZE and top < Oy + 6 * TILESIZE:
+        else:
             pygame.draw.line(
                 DISPLAYSURF,
                 highLightColor,
@@ -504,7 +468,7 @@ def makeText(text, color, bgcolor, top, left):
     textSurf = BASICFONT.render(text, True, color, bgcolor)
     textRect = textSurf.get_rect()
     textRect.topleft = (top, left)
-    return (textSurf, textRect)
+    return textSurf, textRect
 
 
 def moveAnimation(board, direction, number, message="", jx=0, jy=0):
@@ -725,10 +689,7 @@ def gameWonAnimation():
 def validateMove(board, tileX, tileY, playerChance, direction, playerx=-1, playery=-1):
     if playerx == -1:  # no parameter recieved, initialize to actual parameter
         playerx, playery = getPlayerPosition(board, playerChance)
-        if playerChance == 1:
-            onumber = 2
-        else:
-            onumber = 1
+        onumber = 3 - playerChance
         opp_playerx, opp_playery = getPlayerPosition(board, onumber)
     for position in TotalFence:
         if position[0][0] == position[1][0]:
@@ -740,7 +701,7 @@ def validateMove(board, tileX, tileY, playerChance, direction, playerx=-1, playe
                 miny = position[0][1]
                 maxy = position[1][1]
 
-            if tileY < maxy and tileY >= miny and playery < maxy and playery >= miny:
+            if miny <= tileY < maxy and miny <= playery < maxy:
                 if playerx < position[0][0]:
                     if (playerx - position[0][0]) * (tileX - position[0][0] + 0.1) < 0:
                         return False  # Invalid move
